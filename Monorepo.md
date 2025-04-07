@@ -30,10 +30,13 @@ $ nest new {project-name}
 # husky
 $ pnpm add husky -D
 $ npx husky init
+(add a command to pre-commit)
 
 # eslint
 $ pnpm add eslint
-$ touch .eslintrc.js
+$ vim eslint.config.mjs
+(I still haven't figure out how to deal with the setting. You can find the setting from previous project
+I works but kind of weired.)
 
 # lint-staged
 $ pnpm add lint-staged
