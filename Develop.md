@@ -33,6 +33,8 @@
 
 # eslint
 
+這邊的是比較舊版本的`eslint`設定，新版的設定可以參考`blog`專案的設定
+
 ```js
 # eslint.config.mjs
 import js from '@eslint/js';

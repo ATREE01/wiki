@@ -99,38 +99,49 @@ CMD ["pnpm", "start"]
 ## NestJS
 
 ```Dockerfile
-FROM node:20-slim AS base
-
+# Stage 1: Base image with Node.js & pnpm setup via corepack
+FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+# Pin corepack version for reproducibility
+RUN npm install -g corepack@0.23.0
 RUN corepack enable
-COPY . /app
 WORKDIR /app
 
+# Stage 2: Install dependencies and build the project
 FROM base AS build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml ./
+COPY . .
+# Fetch all dependencies (including dev)
+RUN pnpm fetch --prod=false
+# Install all dependencies using the lockfile
+RUN pnpm install --frozen-lockfile --prod=false
+# Build the entire workspace
 RUN pnpm build
 
-FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \ 
-    pnpm pkg delete scripts.prepare && \ 
-    cd apps/frontend && pnpm pkg delete scripts.postinstall && \
-    cd ../.. && pnpm install --prod --frozen-lockfile
+# Stage 3: Prepare production deployment structure
+FROM base AS deploy-prep
+WORKDIR /app
+COPY --from=build /app /app
+# Use pnpm deploy to copy only production files/dependencies for the target app to /deploy
+# Leverages pnpm cache mount for potential speed improvements on repeated builds
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm deploy --prod --filter={project}(e.g.@financemanager/nest-backend)/deploy
 
-FROM node:20-slim AS backend
-
-COPY --from=base /app/packages/classroom-website-types/package.json /app/packages/classroom-website-types/package.json
-
-COPY --from=prod-deps /app/apps/backend/node_modules /app/apps/backend/node_modules
-COPY --from=build /app/packages/classroom-website-types/dist /app/packages/classroom-website-types/dist
-
-COPY --from=prod-deps /app/node_modules /app/node_modules
-COPY --from=build /app/apps/backend/dist /app/apps/backend/dist
-
-WORKDIR /app/apps/backend
-USER node
+# Stage 4: Final production image
+FROM node:22-slim AS final
+WORKDIR /app
 ENV NODE_ENV production
-EXPOSE 3000
+# Run as non-root user 'node' provided by the base image
+USER node
 
-CMD [ "node", "dist/src/main.js" ]
+# Copy the pruned production files and dependencies
+COPY --from=deploy-prep --chown=node:node /deploy/dist /app/dist
+COPY --from=deploy-prep --chown=node:node /deploy/node_modules /app/node_modules
+COPY --from=deploy-prep --chown=node:node /deploy/package.json /app/package.json
+
+# Set runtime directory relative to the deployed structure
+WORKDIR /app
+EXPOSE 3000
+CMD [ "node", "dist/main.js" ]
 ```
