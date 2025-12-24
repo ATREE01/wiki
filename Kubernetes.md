@@ -61,6 +61,7 @@ spec:
 ### Nginx Ingress
 A sample service is accessible at `web.example.com`.
 
+
 ### Cert Manager
 
 1. Install using `helm`
@@ -145,6 +146,22 @@ grafana:
 ```bash
 helm install monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f values.yaml
 
+```
+
+### Metrics Server
+
+```bash
+vim values.yaml
+```
+
+```
+args:
+  - --kubelet-insecure-tls
+  - --kubelet-preferred-address-types=InternalIP
+```
+
+```bash
+helm install metrics-server metrics-server/metrics-server   -n kube-system   -f values.yaml
 ```
 
 
@@ -253,6 +270,68 @@ helm install "${INSTALLATION_NAME}" \
 
 ```
 
+```yaml
+githubConfigSecret:
+  github_token: { token }
+githubConfigUrl: https://github.com/{org}
+namespaceOverride: ''
+template:
+  spec:
+    containers:
+      - command:
+          - /home/runner/run.sh
+        image: ghcr.io/actions/actions-runner:latest
+        name: runner
+        env:
+          - name: ACTIONS_RUNNER_CONTAINER_HOOKS
+            value: /home/runner/k8s/index.js
+          - name: ACTIONS_RUNNER_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            value: 'true'
+        volumeMounts:
+          - mountPath: /home/runner/_work
+            name: work
+    initContainers:
+      - command:
+          - sudo
+          - chown
+          - '-R'
+          - '1001:1001'
+          - /home/runner/_work
+        image: ghcr.io/actions/actions-runner:latest
+        name: kube-init
+        volumeMounts:
+          - mountPath: /home/runner/_work
+            name: work
+    volumes:
+      - ephemeral:
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 5Gi
+              storageClassName: harvester
+        name: work
+containerMode:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: harvester
+  type: kubernetes
+global:
+  cattle:
+    systemProjectId: p-r4l64
+maxRunners: 5
+minRunners: 1
+runnerScaleSetName: staging-runner
+```
+
 ### Finance Manager
 - Deployed using Helm chart.
-
