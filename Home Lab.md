@@ -15,6 +15,27 @@
 2. vmbr1 for the logical interface act as openwrt lan port.
 3. vmbr2 for the logical interface act as the NAopenwrt lan port.
 
+### **Subnet Settings Description**
+
+- **172.16.0.0/24**:  
+  Local network
+
+#### VLAN
+- **10.50.30.0/24**:  
+- **10.50.50.0/24**:  
+  Most machine are here for now.
+- **10.50.60.0/24**:  
+
+
+### **Tips**
+
+- For **Ansible**, use the following flags to enable sudo privilege with a password:  
+  ```bash
+  --ask-become-pass  # Prompt for privilege escalation password
+  --ask-pass         # Prompt for SSH user password
+  ```
+---
+
 #### OpenWRT BGP
 
 `quagga.conf`
@@ -49,31 +70,5 @@ line vty
 
 ---
 
-### **Tips**
 
-- For **Ansible**, use the following flags to enable sudo privilege with a password:  
-  ```bash
-  --ask-become-pass  # Prompt for privilege escalation password
-  --ask-pass         # Prompt for SSH user password
-  ```
-
----
-
-### **Virtual Machines**
-
-#### **TrueNAS**
-
-1. Enable disk passthrough for the TrueNAS VM using the following steps:
-   - Run the command to identify device IDs:  
-     ```bash
-     lsblk | awk 'NR==1{print $0" DEVICE-ID(S)"} NR>1{dev=$1; printf $0" "; system("find /dev/disk/by-id -lname \"*"dev"\" -printf \" %p\""); print "";}'
-     ```  
-     *(This command lists disk device IDs while excluding partitions and logical volumes.)*
-   - Configure the VM to passthrough disks:  
-     ```bash
-     qm set <vm-id> <disk-name> /dev/disk/by-id/<disk-id>
-     ```  
-   Reference: [How to Install TrueNAS in Proxmox with HDD Passthrough](https://www.youtube.com/watch?v=MkK-9_-2oko)
-
----
 
